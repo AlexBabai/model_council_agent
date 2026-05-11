@@ -1,0 +1,14 @@
+version: 1
+
+task_pipeline:
+  - name: "Install task as module"
+    run: "run_script"
+    args:
+      origin: "${{ global.temp_dir }}/${{ task.task_sub_path }}"
+      script: "uv pip install -e '.[test]'"
+
+  - name: "Run tests"
+    run: "run_script"
+    args:
+      origin: "${{ global.temp_dir }}/${{ task.task_sub_path }}"
+      script: "python -m pytest -q"

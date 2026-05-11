@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=80.9.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "api_agent"
+version = "0.0.0"
+description = "Persistent HTTP API agent with configurable LLM and MCP integrations"
+dependencies = [
+    "fastapi>=0.115.12",
+    "fastmcp>=3.2.3",
+    "mcp>=1.27.0",
+    "python-dotenv>=1.2.1",
+    "aiosqlite>=0.22.1",
+    "pydantic>=2.12.5",
+    "openai>=2.14.0",
+    "uvicorn>=0.34.2",
+    "ruff==0.6.4",
+    "pyrefly==0.40.1",
+    "black==24.8.0",
+    "pytest==8.3.2",
+    "pytest-timeout==2.3.1",
+    "requests-mock==1.12.1",
+    "pytest-mock==3.14.0",
+    "pytest-cov==5.0.0",
+    "psutil==6.0.0",
+]
+
+[tool.setuptools]
+packages = ["api_agent"]
+package-dir = { api_agent = "api_agent" }
+include-package-data = false
+
