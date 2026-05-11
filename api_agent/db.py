@@ -322,8 +322,7 @@ class Database:
             return [self._message_from_row(row) for row in rows]
 
     async def set_chat_running(self, user_id: str, chat_id: int, running: bool) -> bool:
-        db = await self.connect()
-        async with db:
+        async with self._connection() as db:
             if running:
                 cursor = await db.execute(
                     """
