@@ -2,6 +2,142 @@
 
 `rest` `api` `http` `sse` `mcp` `llm` `agent`
 
+Реализация находится в `api_agent/`. Краткая документация по запуску, Docker, auth headers,
+примеру ручной проверки и MCP описана в [API.md](API.md).
+
+## Usage
+
+### Что реализовано
+
+- Асинхронный backend на **FastAPI** с OpenAPI/Swagger UI по адресу `/docs`.
+- Header-auth для всех пользовательских endpoints:
+  - `X-Agent-Token` — общий секрет сервиса, сравнивается с `AGENT_AUTH_TOKEN`;
+  - `X-User-Id` — идентификатор пользователя, по нему изолируются данные.
+- Персистентное хранение в SQLite: LLM-конфиги, MCP-конфиги, чаты, сообщения и связи chat ↔ MCP.
+- OpenAI-compatible endpoint `POST /v1/chat/completions`.
+- Основной agent endpoint `POST /chats/{chat_id}/messages`, который запускает model council:
+  до 3 LLM-конфигов, до 3 раундов на модель, затем финальный синтез ответа.
+- Встроенный arithmetic MCP с tools `arithmetic__double` и `arithmetic__divide`.
+- Подключение внешних MCP через Streamable HTTP с `Authorization: Bearer <token>`.
+- Guardrails:
+  - больше 10 completions за одну итерацию → ошибка;
+  - один и тот же tool больше 2 раз подряд → ошибка;
+  - MCP в чате нельзя менять во время активной agent iteration.
+
+### Run locally
+
+```bash
+uv sync
+AGENT_AUTH_TOKEN=dev-token DATABASE_PATH=db.sqlite \
+  uv run uvicorn api_agent.app:app --host 0.0.0.0 --port 8000
+```
+
+После запуска:
+
+- Swagger UI: <http://127.0.0.1:8000/docs>
+- OpenAPI JSON: <http://127.0.0.1:8000/openapi.json>
+- Healthcheck: <http://127.0.0.1:8000/health>
+
+### Run with Docker
+
+```bash
+AGENT_AUTH_TOKEN=dev-token DATABASE_PATH=/data/db.sqlite PORT=8000 \
+  docker compose up --build
+```
+
+### Auth headers
+
+Все пользовательские endpoints вызываются с headers:
+
+```text
+X-Agent-Token: dev-token
+X-User-Id: alice
+```
+
+`X-Agent-Token` должен совпадать с переменной окружения `AGENT_AUTH_TOKEN`.
+`X-User-Id` не берется из тела запроса — это важно для multi-tenant isolation.
+
+### Typical request flow
+
+```bash
+BASE=http://127.0.0.1:8000
+AUTH=(-H 'X-Agent-Token: dev-token' -H 'X-User-Id: alice')
+
+# 1. Add an OpenAI-compatible LLM config.
+# API key is stored server-side and is not returned in public responses.
+curl -s "$BASE/llm-configs" "${AUTH[@]}" \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "name": "OpenRouter",
+    "base_url": "https://openrouter.ai/api",
+    "api_key": "<your-api-key>",
+    "model": "openai/gpt-4o-mini"
+  }'
+
+# 2. Create a chat. Use up to 3 LLM config IDs for model council.
+curl -s "$BASE/chats" "${AUTH[@]}" \
+  -H 'Content-Type: application/json' \
+  -d '{"title": "Homework check", "llm_config_ids": [1]}'
+
+# 3. Run the agent in the chat.
+curl -s "$BASE/chats/1/messages" "${AUTH[@]}" \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "content": "Explain which auth headers this API requires and why.",
+    "stream": false
+  }'
+
+# 4. Read persisted chat history.
+curl -s "$BASE/chats/1" "${AUTH[@]}"
+```
+
+### OpenAI-compatible endpoint
+
+```bash
+curl -s "$BASE/v1/chat/completions" "${AUTH[@]}" \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "chat_id": 1,
+    "messages": [
+      {"role": "user", "content": "Answer with exactly: smoke-ok"}
+    ],
+    "stream": false
+  }'
+```
+
+Example response shape:
+
+```json
+{
+  "id": "chatcmpl-...",
+  "object": "chat.completion",
+  "model": "model-council",
+  "choices": [
+    {
+      "index": 0,
+      "message": {"role": "assistant", "content": "smoke-ok"},
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {"prompt_tokens": 0, "completion_tokens": 1, "total_tokens": 1}
+}
+```
+
+### Real E2E check performed
+
+The service was tested with a real OpenRouter API key and `openai/gpt-4o-mini`.
+The successful model-council run used three OpenRouter-backed LLM configs and
+`POST /chats/{chat_id}/messages`; the response returned:
+
+- HTTP `200`;
+- `completions_used=4`;
+- `model_votes=3`;
+- final content containing `X-Agent-Token`, `X-User-Id`, and `secret_echo=no`;
+- persisted user prompt and assistant answer in `GET /chats/{chat_id}`;
+- HTTP `404` for another `X-User-Id` trying to read the same chat.
+
+Swagger UI was also verified: `GET /docs` returned HTTP `200` and rendered Swagger UI.
+
 В этой домашке вам предлагается сделать HTTP API, под капотом которого живет простой агент. Агент должен уметь работать с внешней LLM, вызывать тулы из подключенных MCP-серверов и сохранять историю чатов.
 
 Цель задания - потренироваться писать асинхронный код, хранить необходимые данные в БД, разобраться с [Chat Completions API](https://developers.openai.com/api/reference/resources/chat) и [MCP](https://modelcontextprotocol.io/docs/getting-started/intro), а заодно спроектировать внятный API под пользовательские сценарии.

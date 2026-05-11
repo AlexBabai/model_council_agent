@@ -1,0 +1,14 @@
+services:
+  api:
+    build: .
+    ports:
+      - "${PORT:-8000}:8000"
+    environment:
+      AGENT_AUTH_TOKEN: "${AGENT_AUTH_TOKEN:?set AGENT_AUTH_TOKEN}"
+      DATABASE_PATH: "/data/db.sqlite"
+    volumes:
+      - agent-data:/data
+    restart: unless-stopped
+
+volumes:
+  agent-data:

@@ -1,2 +1,6 @@
 db.sqlite*
 swagger.json
+.env
+.venv
+__pycache__/
+*.pyc
