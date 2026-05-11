@@ -26,8 +26,24 @@ dependencies = [
     "psutil==6.0.0",
 ]
 
+[project.scripts]
+api-agent = "api_agent.app:main"
+
 [tool.setuptools]
 packages = ["api_agent"]
 package-dir = { api_agent = "api_agent" }
 include-package-data = false
 
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.black]
+line-length = 100
+target-version = ["py312"]
+
+[tool.pyrefly]
+project-includes = ["api_agent/**/*.py", "test_public.py"]

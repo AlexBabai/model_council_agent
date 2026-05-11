@@ -2,6 +2,9 @@
 
 `rest` `api` `http` `sse` `mcp` `llm` `agent`
 
+Реализация находится в `api_agent/`. Краткая документация по запуску, Docker, auth headers,
+примеру ручной проверки и MCP описана в [API.md](API.md).
+
 В этой домашке вам предлагается сделать HTTP API, под капотом которого живет простой агент. Агент должен уметь работать с внешней LLM, вызывать тулы из подключенных MCP-серверов и сохранять историю чатов.
 
 Цель задания - потренироваться писать асинхронный код, хранить необходимые данные в БД, разобраться с [Chat Completions API](https://developers.openai.com/api/reference/resources/chat) и [MCP](https://modelcontextprotocol.io/docs/getting-started/intro), а заодно спроектировать внятный API под пользовательские сценарии.
